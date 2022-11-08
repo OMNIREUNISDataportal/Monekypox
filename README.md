@@ -1,3 +1,3 @@
 # Monekypox
 
-##Datasets related to monkeypox are collected here.
+Datasets related to monkeypox are collected here.
