@@ -1,0 +1,648 @@
+function MonkeypoxAnalysis
+close all;
+clear all;
+
+%parameter values
+Lambda_s = 2;                  %Animal birth rate
+Lambda_h = .0328;               %Human birth rate
+mu_s = .5;                     %Animal natural death rate
+mu_h = 1/60;                 %Human natural death rate
+d_s = 17.5;                      %Animal disease death rate
+d_h = 3.12;                      %Human disease death rate
+rho_s = 12;                   %Rate of recovery in Animals
+rho_h = 28.08;                   %Rate of recovery in humans
+nu_s = 120;                   %Animal rate of infection
+nu_h = 30.42;                   %Human rate of infection
+%alpha_h = 0.1;                 %Rate of vaccination
+beta_ss = 40;                   %Animal-to-Animal disease transmission rate
+%change beta_ss to 30 for system to equilibriate to semi-endemic state (also see section titled 'Plotting Nash Equilibrium')
+beta_sh = 0.05;                 %Animal-to-human disease transmission rate
+beta_h = 32.85;                   %Human-to-human disease transmission rate
+
+alphaMax = 0.1;
+
+C_vaccine = 4; %literature value for cost of vaccination
+C_sick = 100.1;  %estimated basic cost of getting sick
+
+(mu_s+d_s+rho_s)*(mu_s+nu_s)/nu_s
+
+    function resetParameters
+        %parameter values
+        Lambda_s = 2;                  %Animal birth rate
+        Lambda_h = .0328;               %Human birth rate
+        mu_s = .5;                     %Animal natural death rate
+        mu_h = 1/60;                 %Human natural death rate
+        d_s = 17.5;                      %Animal disease death rate
+        d_h = 3.12;                      %Human disease death rate
+        rho_s = 12;                   %Rate of recovery in Animals
+        rho_h = 28.08;                   %Rate of recovery in humans
+        nu_s = 120;                   %Animal rate of infection
+        nu_h = 30.42;                   %Human rate of infection
+        %alpha_h = 0.1;                 %Rate of vaccination
+        beta_ss = 40;                   %Animal-to-Animal disease transmission rate
+        %change beta_ss to 30 for system to equilibriate to semi-endemic state (also see section titled 'Plotting Nash Equilibrium')
+        beta_sh = 0.05;                 %Animal-to-human disease transmission rate
+        beta_h = 32.85;                   %Human-to-human disease transmission rate
+        alphaMax = 0.1;
+        
+        C_vaccine = 4; %literature value for cost of vaccination
+        C_sick = 100.1;  %estimated basic cost of getting sick
+        
+    end
+
+    function  getR0
+        R0_n = (nu_s * beta_ss) / ((mu_s + d_s + rho_s) * (mu_s + nu_s)); %calculate R0 for Animals
+        R0_h = (nu_h * beta_h * mu_h) ./ ((mu_h + d_h + rho_h) .* (mu_h + nu_h) .* (alpha_h + mu_h)); % calculate R0 for humans
+        R0 = max(R0_n, R0_h);
+    end
+    
+    function getEquilibria
+        % calculates equilibrium values in the compartments
+        
+        %disease free equilibrium
+        N_n0 = (Lambda_s/mu_s);
+        S_n0 = N_n0; %equilibrium point for S_n in the endemic state
+        E_n0 = 0;
+        I_n0 = 0;
+        R_n0 = 0;
+        
+        N_h0 = Lambda_h/mu_h;
+        I_h0 = 0;
+        R_h0 = 0;
+        E_h0 = 0;
+        S_h0 = N_h0*mu_h./(mu_h+alpha_h); %equilibrium point for S_h in the endemic state
+        V_h0 = (alpha_h./mu_h).*S_h0; %equilibrium point for V_h in the endemic state
+        
+        % semi endemic
+        
+        b = ((mu_h + d_h + rho_h)/(nu_h));
+        a = ((mu_h + nu_h)./beta_h);
+        d = (rho_h / mu_h);
+        e = (alpha_h / mu_h);
+        
+        N_ndag = (Lambda_s/mu_s);
+        S_ndag = N_ndag; %equilibrium point for S_n in the endemic state
+        E_ndag = 0;
+        I_ndag = 0;
+        R_ndag = 0;
+        
+        N_hdag = ((d + b + 1) * Lambda_h) ./ (d_h + (b*mu_h + mu_h + rho_h) - (a*b*d_h + e*a*b*d_h));
+        
+        I_hdag = ((Lambda_h - N_hdag.*mu_h)/d_h); %equilibrium point for N_h in the endemic state
+        R_hdag = (rho_h./mu_h).*I_hdag; %equilibrium point for R_h in the endemic state
+        E_hdag = ((mu_h + d_h + rho_h)/nu_h).*I_hdag; %equilibrium point for E_h in the endemic state
+        S_hdag = N_hdag*(mu_h + d_h + rho_h)/nu_h * (mu_h + nu_h)/beta_h; %equilibrium point for S_h in the endemic state
+        V_hdag = (alpha_h./mu_h).*S_hdag; %equilibrium point for V_h in the endemic state
+        
+        
+        %fully endemic state
+        
+        %Animal Equilibrium Solutions:
+        q = (mu_s + d_s + rho_s)/nu_s;   %constants used to reduce length of equations
+        w = (mu_s + nu_s)/beta_ss;
+        
+        N_nstar = (Lambda_s*(q + 1 + (rho_s/mu_s)))/(d_s - (d_s*w*q) + (mu_s*q) + mu_s + rho_s); %equilibrium point for N_n in the fully endemic state
+        
+        S_nstar = q*w*N_nstar; %equilibrium point for S_n in the endemic state
+        E_nstar = ((mu_s + d_s + rho_s)/nu_s)*((Lambda_s - N_nstar*mu_s)/d_s); %equilibrium point for E_n in the endemic state
+        I_nstar = ((Lambda_s - N_nstar*mu_s)/d_s); %equilibrium point for I_n in the endemic state
+        R_nstar = (rho_s/mu_s)*((Lambda_s - N_nstar*mu_s)/d_s); %equilibrium point for R_n in the endemic state
+        
+        %Human Equilibrium Solutions:
+        a = ((mu_h + d_h + rho_h)/(nu_h)); %constants used to reduce length of equations
+        b = (beta_sh * (I_nstar / N_nstar));
+        c = (mu_h + nu_h);
+        d = (rho_h / mu_h);
+        
+        g = b*d_h - beta_h*mu_h;    %further constants to reduce length even more
+        A = d_h*g+d_h*a*c*mu_h*(1+alpha_h/mu_h)+mu_h*g*(1+d+a);  % A,B, and C were used to represent the coefficients in the quadratic solution of N_h for the fully endemic state
+        B = d_h*beta_h * Lambda_h - (g*Lambda_h-beta_h*Lambda_h*mu_h)*(d+a+1) - d_h*a*c * Lambda_h*(1+alpha_h/mu_h);
+        C = - Lambda_h^2 * beta_h*(d+a+1);
+        
+        N_hstar = (-B + sqrt((B.^2)-(4 .* A .* C)))./(2 .* A);  %equilibrium point for N_h in the endemic state
+        I_hstar = ((Lambda_h - N_hstar.*mu_h)/d_h); %equilibrium point for N_h in the endemic state
+        R_hstar = (rho_h./mu_h).*I_hstar; %equilibrium point for R_h in the endemic state
+        E_hstar = ((mu_h + d_h + rho_h)/nu_h).*I_hstar; %equilibrium point for E_h in the endemic state
+        S_hstar = ((mu_h + nu_h).*((mu_h + d_h + rho_h)/nu_h).*I_hstar) ./ (beta_sh .* (I_nstar./N_nstar) + (beta_h .* (I_hstar ./(N_hstar)))); %equilibrium point for S_h in the endemic state
+        V_hstar = (alpha_h./mu_h).*S_hstar; %equilibrium point for V_h in the endemic state
+        
+        
+        
+        N_n = N_n0.*(R0_n<1).*(R0_h<1) + N_ndag.*(R0_n<1).*(R0_h>1) + N_nstar.*(R0_n>1);
+        S_n = S_n0.*(R0_n<1).*(R0_h<1) + S_ndag.*(R0_n<1).*(R0_h>1) + S_nstar.*(R0_n>1);
+        E_n = E_n0.*(R0_n<1).*(R0_h<1) + E_ndag.*(R0_n<1).*(R0_h>1) + E_nstar.*(R0_n>1);
+        I_n = I_n0.*(R0_n<1).*(R0_h<1) + I_ndag.*(R0_n<1).*(R0_h>1) + I_nstar.*(R0_n>1);
+        R_n = R_n0.*(R0_n<1).*(R0_h<1) + R_ndag.*(R0_n<1).*(R0_h>1) + R_nstar.*(R0_n>1);
+        
+        N_h = N_h0.*(R0_n<1).*(R0_h<1) + N_hdag.*(R0_n<1).*(R0_h>1) + N_hstar.*(R0_n>1);
+        I_h = I_h0.*(R0_n<1).*(R0_h<1) + I_hdag.*(R0_n<1).*(R0_h>1) + I_hstar.*(R0_n>1);
+        R_h = R_h0.*(R0_n<1).*(R0_h<1) + R_hdag.*(R0_n<1).*(R0_h>1) + R_hstar.*(R0_n>1);
+        E_h = E_h0.*(R0_n<1).*(R0_h<1) + E_hdag.*(R0_n<1).*(R0_h>1) + E_hstar.*(R0_n>1);
+        S_h = S_h0.*(R0_n<1).*(R0_h<1) + S_hdag.*(R0_n<1).*(R0_h>1) + S_hstar.*(R0_n>1);
+        V_h = V_h0.*(R0_n<1).*(R0_h<1) + V_hdag.*(R0_n<1).*(R0_h>1) + V_hstar.*(R0_n>1);
+        
+        
+    end
+
+    function output = getNE
+        % calculates the Nash equilibrium vaccination rate alpha_h
+        
+        % calculate R0s
+        getR0
+        
+        % calculate equilibrium points
+        getEquilibria
+        
+        % calculate the force of infection
+        littleLambda_h = (beta_sh .* (I_n ./ (S_n + E_n + I_n + R_n)) + (beta_h .* (I_h ./(S_h + V_h + E_h + I_h + R_h)))); %used to calculate probability of getting sick (chance of moving from S to I compartment)
+        
+        % calculate the cost of not vaccinating
+        CostNotV = (littleLambda_h./(littleLambda_h + mu_h)).*(nu_h./(nu_h + mu_h)).* C_sick; %avg. cost of sickness
+        
+        % get the Nash equilibria
+        output = FindCrossing(alpha_h, CostNotV, C_vaccine); %Nash Equilibrium happens when Cost of not vaccinating goes under the cost of vaccination
+        
+    end
+
+%(nu_h * beta_h * mu_h) ./ ((mu_h + d_h + rho_h) .* (mu_h + nu_h) )-mu_h %equilibrium alpha
+
+%1/ ((nu_h *  mu_h) ./ ((mu_h + d_h + rho_h) .* (mu_h + nu_h) .* ( mu_h))) % smallest beta h to create infection
+
+
+
+%% Auxiliary Functions
+    function formatFig(hfig)
+        % function formatFigure(hfig)
+        % typically hfig = gcf, current graphics file
+        % formats the figure with handle hfig
+        
+        %get axes handle
+        haxes=get(hfig, 'CurrentAxes');
+        
+        %find all line objects
+        hline= findobj(haxes,'Type','line');
+        %set line properties (relatively fat lines)
+        set(hline, ...
+            'LineWidth'   , 2);   %makes the lines thicker
+        
+        %set axes properties
+        set(haxes, ...
+            'Box'         , 'on'     , ...  %puts a box around the axis
+            'TickDir'     , 'in'     , ...
+            'TickLength'  , [.02 .01] , ...
+            'XMinorTick'  , 'off'      , ...
+            'YMinorTick'  , 'off'     , ...
+            'LineWidth'   , 1);
+        
+        set(findall(gcf,'-property','FontSize'),'FontSize',16)  %set all fonts to this size
+    end   %function for proper formatting
+
+    function printFig(h, filename)  %function used to save high resolution images
+        %prints figure with handle h to file named filename.pdf
+        set(h,'Units','Inches');
+        pos = get(h,'Position');
+        set(h,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
+        print(h,['./files/' filename, '.pdf'],'-dpdf','-r0')
+    end
+
+% the function below is the ODE system but will be used for variable
+% vaccination rate aplha. All other parameters will be fixed
+function dXdt = SIRVmodelVariableAlpha(t, Variables)
+    S_n = Variables(1);
+    E_n = Variables(2);
+    I_n = Variables(3);
+    R_n = Variables(4);
+    S_h = Variables(5);
+    V_h = Variables(6);
+    E_h = Variables(7);
+    I_h = Variables(8);
+    R_h = Variables(9);
+    
+    %write the equations
+    %primates
+    dS_ndt = Lambda_s - (mu_s + (beta_ss.*(I_n./(S_n + E_n + I_n + R_n)))).*S_n;
+    dE_ndt = (beta_ss.*(I_n./(S_n + E_n + I_n + R_n))).*S_n - (mu_s + nu_s).*E_n;
+    dI_ndt = (nu_s .* E_n) - (mu_s + d_s + rho_s).*I_n;
+    dR_ndt = (rho_s .* I_n) - (mu_s .* R_n);
+    
+    %humans
+    dS_hdt = (Lambda_h) - (mu_h+(beta_sh .* (I_n ./ (S_n + E_n + I_n + R_n)) + (beta_h .* (I_h ./(S_h + V_h + E_h + I_h + R_h))))+ALPHA).*(S_h);
+    dV_hdt = (ALPHA.*S_h - V_h.*mu_h);
+    dE_hdt = ((beta_sh .* (I_n ./ (S_n + E_n + I_n + R_n)) + (beta_h .* (I_h ./(S_h + V_h + E_h + I_h + R_h)))).*S_h) - ((mu_h + nu_h).*E_h);
+    dI_hdt = (nu_h .* E_h) - ((mu_h + d_h + rho_h) .* I_h);
+    dR_hdt = (rho_h .* I_h) - (mu_h .* R_h);
+    %produce the output
+    dXdt = [dS_ndt dE_ndt dI_ndt dR_ndt dS_hdt dV_hdt dE_hdt dI_hdt dR_hdt]';
+end
+
+
+
+%% Determining Costs vs Varying Vaccination Rates
+% Vaccination rate alpha is varied. All other parameters will be fixed
+
+alpha_h = linspace(0,alphaMax,1001); %101 points between 0 and 1; used to vary vaccination rate
+%the number of points for alpha_h can be changed for smoother graphs
+
+% calculate R0s
+R0_n = (nu_s * beta_ss) / ((mu_s + d_s + rho_s) * (mu_s + nu_s)); %calculate R0 for Animals
+R0_h = (nu_h * beta_h * mu_h) ./ ((mu_h + d_h + rho_h) .* (mu_h + nu_h) .* (alpha_h + mu_h)); % calculate R0 for humans
+
+
+
+%calculate equilibrium points
+
+%disease free equilibrium
+N_n0 = (Lambda_s/mu_s);
+S_n0 = N_n0; %equilibrium point for S_n in the endemic state
+E_n0 = 0;
+I_n0 = 0;
+R_n0 = 0;
+
+N_h0 = Lambda_h/mu_h;
+I_h0 = 0;
+R_h0 = 0;
+E_h0 = 0;
+S_h0 = N_h0*mu_h./(mu_h+alpha_h); %equilibrium point for S_h in the endemic state
+V_h0 = (alpha_h./mu_h).*S_h0; %equilibrium point for V_h in the endemic state
+
+% semi endemic
+
+b = ((mu_h + d_h + rho_h)/(nu_h));
+a = ((mu_h + nu_h)./beta_h);
+d = (rho_h / mu_h);
+e = (alpha_h / mu_h);
+
+N_ndag = (Lambda_s/mu_s);
+S_ndag = N_ndag; %equilibrium point for S_n in the endemic state
+E_ndag = 0;
+I_ndag = 0;
+R_ndag = 0;
+
+N_hdag = ((d + b + 1) * Lambda_h) ./ (d_h + (b*mu_h + mu_h + rho_h) - (a*b*d_h + e*a*b*d_h));
+
+I_hdag = ((Lambda_h - N_hdag.*mu_h)/d_h); %equilibrium point for N_h in the endemic state
+R_hdag = (rho_h./mu_h).*I_hdag; %equilibrium point for R_h in the endemic state
+E_hdag = ((mu_h + d_h + rho_h)/nu_h).*I_hdag; %equilibrium point for E_h in the endemic state
+S_hdag = N_hdag*(mu_h + d_h + rho_h)/nu_h * (mu_h + nu_h)/beta_h; %equilibrium point for S_h in the endemic state
+V_hdag = (alpha_h./mu_h).*S_hdag; %equilibrium point for V_h in the endemic state
+
+
+%fully endemic state
+
+%Animal Equilibrium Solutions:
+q = (mu_s + d_s + rho_s)/nu_s;   %constants used to reduce length of equations
+w = (mu_s + nu_s)/beta_ss;
+
+N_nstar = (Lambda_s*(q + 1 + (rho_s/mu_s)))/(d_s - (d_s*w*q) + (mu_s*q) + mu_s + rho_s); %equilibrium point for N_n in the fully endemic state
+
+S_nstar = q*w*N_nstar; %equilibrium point for S_n in the endemic state
+E_nstar = ((mu_s + d_s + rho_s)/nu_s)*((Lambda_s - N_nstar*mu_s)/d_s); %equilibrium point for E_n in the endemic state
+I_nstar = ((Lambda_s - N_nstar*mu_s)/d_s); %equilibrium point for I_n in the endemic state
+R_nstar = (rho_s/mu_s)*((Lambda_s - N_nstar*mu_s)/d_s); %equilibrium point for R_n in the endemic state
+
+%Human Equilibrium Solutions:
+a = ((mu_h + d_h + rho_h)/(nu_h)); %constants used to reduce length of equations
+b = (beta_sh * (I_nstar / N_nstar));
+c = (mu_h + nu_h);
+d = (rho_h / mu_h);
+
+g = b*d_h - beta_h*mu_h;    %further constants to reduce length even more
+A = d_h*g+d_h*a*c*mu_h*(1+alpha_h/mu_h)+mu_h*g*(1+d+a);  % A,B, and C were used to represent the coefficients in the quadratic solution of N_h for the fully endemic state
+B = d_h*beta_h * Lambda_h - (g*Lambda_h-beta_h*Lambda_h*mu_h)*(d+a+1) - d_h*a*c * Lambda_h*(1+alpha_h/mu_h);
+C = - Lambda_h^2 * beta_h*(d+a+1);
+
+N_hstar = (-B + sqrt((B.^2)-(4 .* A .* C)))./(2 .* A);  %equilibrium point for N_h in the endemic state
+I_hstar = ((Lambda_h - N_hstar.*mu_h)/d_h); %equilibrium point for N_h in the endemic state
+R_hstar = (rho_h./mu_h).*I_hstar; %equilibrium point for R_h in the endemic state
+E_hstar = ((mu_h + d_h + rho_h)/nu_h).*I_hstar; %equilibrium point for E_h in the endemic state
+S_hstar = ((mu_h + nu_h).*((mu_h + d_h + rho_h)/nu_h).*I_hstar) ./ (beta_sh .* (I_nstar./N_nstar) + (beta_h .* (I_hstar ./(N_hstar)))); %equilibrium point for S_h in the endemic state
+V_hstar = (alpha_h./mu_h).*S_hstar; %equilibrium point for V_h in the endemic state
+
+
+
+N_n = N_n0.*(R0_n<1).*(R0_h<1) + N_ndag.*(R0_n<1).*(R0_h>1) + N_nstar.*(R0_n>1);
+S_n = S_n0.*(R0_n<1).*(R0_h<1) + S_ndag.*(R0_n<1).*(R0_h>1) + S_nstar.*(R0_n>1);
+E_n = E_n0.*(R0_n<1).*(R0_h<1) + E_ndag.*(R0_n<1).*(R0_h>1) + E_nstar.*(R0_n>1);
+I_n = I_n0.*(R0_n<1).*(R0_h<1) + I_ndag.*(R0_n<1).*(R0_h>1) + I_nstar.*(R0_n>1);
+R_n = R_n0.*(R0_n<1).*(R0_h<1) + R_ndag.*(R0_n<1).*(R0_h>1) + R_nstar.*(R0_n>1);
+
+N_h = N_h0.*(R0_n<1).*(R0_h<1) + N_hdag.*(R0_n<1).*(R0_h>1) + N_hstar.*(R0_n>1);
+I_h = I_h0.*(R0_n<1).*(R0_h<1) + I_hdag.*(R0_n<1).*(R0_h>1) + I_hstar.*(R0_n>1);
+R_h = R_h0.*(R0_n<1).*(R0_h<1) + R_hdag.*(R0_n<1).*(R0_h>1) + R_hstar.*(R0_n>1);
+E_h = E_h0.*(R0_n<1).*(R0_h<1) + E_hdag.*(R0_n<1).*(R0_h>1) + E_hstar.*(R0_n>1);
+S_h = S_h0.*(R0_n<1).*(R0_h<1) + S_hdag.*(R0_n<1).*(R0_h>1) + S_hstar.*(R0_n>1);
+V_h = V_h0.*(R0_n<1).*(R0_h<1) + V_hdag.*(R0_n<1).*(R0_h>1) + V_hstar.*(R0_n>1);
+
+
+littleLambda_h = (beta_sh .* (I_n ./ (S_n + E_n + I_n + R_n)) + (beta_h .* (I_h ./(S_h + V_h + E_h + I_h + R_h)))); %used to calculate probability of getting sick (chance of moving from S to I compartment)
+
+
+
+CostNotV = (littleLambda_h./(littleLambda_h + mu_h)).*(nu_h./(nu_h + mu_h)).* C_sick; %avg. cost of sickness
+CostV = C_vaccine .* ones(length(alpha_h),1); %cost of vaccination
+
+disp('Nash equilibrium')
+aNE = getNE
+
+
+disp('seropositive animals')
+(I_n(alpha_h==aNE)+R_n(alpha_h==aNE))./N_n(alpha_h==aNE)
+
+
+
+disp('seropositive humans')
+(I_h(alpha_h==aNE)+R_h(alpha_h==aNE))/N_h(alpha_h==aNE)
+
+
+
+
+%% Plotting Costs Against Varying Vaccination Rates
+
+figure
+hold on
+plot(alpha_h, CostNotV, 'DisplayName', 'Cost of not vaccinating', 'color', [0 0 0]) %plots cost of not vaccinating as a function of the vaccination rate
+plot(alpha_h, CostV, ':', 'DisplayName', 'Cost of vaccinating', 'color', [0 0 0]) %plots the cost of vaccinating
+%ylim([0 20]);
+xlim([0 alphaMax]);
+hold off
+
+lgd = legend('show', 'Location', 'best');  %put legend in the best location
+set(lgd,'Interpreter','latex'); %use LaTeX to interpret the legend
+xlabel('Vaccination rate \alpha_h');
+ylabel('Cost');
+if    beta_ss > 1/ ((nu_h *  mu_h) ./ ((mu_h + d_h + rho_h) .* (mu_h + nu_h) .* ( mu_h))) % smallest beta h to create infection
+    
+    titleFigure = 'Fully endemic equilibrium';
+    FileName = 'CvA_FE';
+else
+    titleFigure = 'Semi-endemic equilibrium';
+    FileName = 'CvA_SE';
+end
+
+title(titleFigure);
+formatFig(gcf) %format figure (increase font size, make line thicker etc)
+printFig(gcf, FileName)
+
+%% Nash Equilibrium
+% Vaccination rate alpha and human to human transmission rate beta_h is varied. All other parameters will be fixed
+
+    function output = FindCrossing(x, y, c)
+        % this functions takes a function y (of x) and a constant c
+        % it finds and return the point where y crosses the constant c from
+        % the top
+        if max(y)<c
+            %y never crosses c and is always under it
+            output = min(x);
+        elseif min(y)>c
+            %y never crosses c and is always over it
+            output = max(x);
+        else
+            %y crosses c. We will find the cross from the top to the bottom
+            yShifted = y(2:end);
+            yShifted(end+1) = 0;  %this created a shited array, what is in nth position here was inthe (n+1) position before
+            
+            ind1 = (y>c); %this is where y is bigger than the constant
+            ind2  = (yShifted<=c); %this is where it is already smaller in the next element
+            
+            ind = ind1.*ind2; %this is when both of the above conditions are true
+            
+            output = x(ind==1); %this is the actual value of x  that satisfy both of the above conditions
+        end %if
+        
+    end %function used to determine herd immunity and nash equilibrium rates (more on this further down)
+
+%% % 
+% Lambda_s = 2;                  %Animal birth rate
+% Lambda_h = .0328;               %Human birth rate
+% mu_s = .5;                     %Animal natural death rate
+% mu_h = 1/60;                 %Human natural death rate
+% d_s = 17.5;                      %Animal disease death rate
+% d_h = 3.12;                      %Human disease death rate
+% rho_s = 12;                   %Rate of recovery in Animals
+% rho_h = 28.08;                   %Rate of recovery in humans
+% nu_s = 120;                   %Animal rate of infection
+% nu_h = 30.42;                   %Human rate of infection
+% %alpha_h = 0.1;                 %Rate of vaccination
+% beta_ss = 40;                   %Animal-to-Animal disease transmission rate
+% %change beta_ss to 18 for system to equilibriate to semi-endemic state (also see section titled 'Plotting Nash Equilibrium')
+% beta_sh = 0.05;                 %Animal-to-human disease transmission rate
+% beta_h = 32.85;                   %Human-to-human disease transmission rate
+% 
+% alphaMax = 0.1;
+% 
+% C_vaccine = 4; %literature value for cost of vaccination
+% C_sick = 100.1;  %estimated basic cost of getting sick
+
+
+betahhValues = linspace(10,50,101); %used to vary human to human transmission rate
+betaphValues = linspace(0.01,0.1,101); %Animal to human transmission rate
+betappValues = linspace(10,70,101); %Animal to human transmission rate
+rhonValues = linspace(1,20,101); %Animal recovery rate
+rhohValues = linspace(10,50,101); % human recovery  rate
+nunValues = linspace(40,200,101); %Animal recovery rate
+nuhValues = linspace(10,50,101); % human recovery  rate
+dhValues = linspace(1,5,101); % human MPX death rate
+dnValues = linspace(10,25,101); % human MPX death rate
+munValues = linspace(0.001,0.1,100); % Animal natural death rate
+CvValues = linspace(2,6,101); % cost of vaccine
+CmpxValues = linspace(50,150,101); % cost of MPX infection
+
+alpha_h = linspace(0,0.1,100001); %used to vary vaccination rate;
+%the number of points for alpha_h and beta_h can be changed for smoother graphs
+%for every different beta, find  the Nash equilibrium
+
+
+resetParameters
+for aux_index = 1:length(betahhValues)  %for every element of beta
+    beta_h = betahhValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_betahh(aux_index) = getNE;
+end
+
+
+resetParameters
+for aux_index = 1:length(betappValues)  %for every element of beta
+    beta_ss = betappValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_betapp(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(betaphValues)  %for every element of beta
+    beta_sh = betaphValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_betaph(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(rhonValues)  %for every element of beta
+    rho_s = rhonValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_rhop(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(rhohValues)  %for every element of beta
+    rho_h = rhohValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_rhoh(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(nunValues)  %for every element of beta
+    nu_s = nunValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_nup(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(nuhValues)  %for every element of beta
+    nu_h = nuhValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_nuh(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(dnValues)  %for every element of beta
+    d_s = dnValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_dp(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(dhValues)  %for every element of beta
+    d_h = dhValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_dh(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(munValues)  %for every element of beta
+    mu_s = munValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_mup(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(CvValues)  %for every element of beta
+    C_vaccine = CvValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_Cv(aux_index) = getNE;
+end
+
+resetParameters
+for aux_index = 1:length(CmpxValues)  %for every element of beta
+    C_sick = CmpxValues(aux_index); %this will be used as the current human to human transmission rate
+    alphaNE_Cmpx(aux_index) = getNE;
+end
+
+%% Plotting Nash Equilibrium
+
+resetParameters
+getNE
+
+fig1 = figure;
+set(gcf,'Position',[0 0 800 600])
+
+
+subplot(3,2,1)
+plot(betahhValues, alphaNE_betahh, 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\beta_{hh}$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+
+subplot(3,2,2)
+plot(betappValues(alphaNE_betapp<max(alpha_h)), alphaNE_betapp(alphaNE_betapp<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\beta_{ss}$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+
+subplot(3,2,3)
+plot(betaphValues(alphaNE_betaph<max(alpha_h)), alphaNE_betaph(alphaNE_betaph<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\beta_{sh}$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+
+subplot(3,2,4)
+plot(munValues(alphaNE_mup<max(alpha_h)), alphaNE_mup(alphaNE_mup<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\mu_s$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,5)
+plot(CvValues(alphaNE_Cv<max(alpha_h)), alphaNE_Cv(alphaNE_Cv<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$C_{V}$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,6)
+plot(CmpxValues(alphaNE_Cmpx<max(alpha_h)), alphaNE_Cmpx(alphaNE_Cmpx<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$C_{MPX}$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+printFigure(fig1, 'sensitivity1')
+
+fig2 = figure;
+set(gcf,'Position',[0 0 800 600])
+
+
+subplot(3,2,1)
+plot(rhonValues(alphaNE_rhop<max(alpha_h)), alphaNE_rhop(alphaNE_rhop<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\rho_s$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,2)
+plot(rhohValues(alphaNE_nup<max(alpha_h)), alphaNE_rhoh(alphaNE_nup<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\rho_h$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,3)
+plot(nunValues(alphaNE_nup<max(alpha_h)), alphaNE_nup(alphaNE_nup<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\nu_s$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,4)
+plot(nuhValues, alphaNE_nuh, 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$\nu_h$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,5)
+plot(dnValues(alphaNE_dp<max(alpha_h)), alphaNE_dp(alphaNE_dp<max(alpha_h)), 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$d_s$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+subplot(3,2,6)
+plot(dhValues, alphaNE_dh, 'DisplayName', '$\alpha_{NE}$', 'color', [0 0 0]) %plots Nash Equilibrium value
+xlabel('$d_h$', 'Interpreter','latex')
+ylabel('$\alpha_{NE}$', 'Interpreter','latex')
+formatFig(gcf)
+
+printFigure(gcf, 'sensitivity2')
+
+    function output = sensitivity(y,x, x0, namey, namex)
+        %outputs how is y sensitive on x, i.e. max of dy/dx at x = x0
+        allderivatives  = (diff(y)./diff(x));
+        output = allderivatives(x==max(x(x<x0)));
+        disp(['$\frac{\partial ' namey '}{\partial ' namex '} = ' num2str(output) '$, '])
+    end
+
+resetParameters;
+diary('MPX.txt')
+diary on
+sensitivity(alphaNE_betahh, betahhValues, beta_h, '\alpha_{NE}', '\beta_{hh}');
+sensitivity(alphaNE_betaph, betaphValues, beta_sh, '\alpha_{NE}', '\beta_{sh}');
+sensitivity(alphaNE_betapp, betappValues, beta_ss, '\alpha_{NE}', '\beta_{ss}');
+sensitivity(alphaNE_rhop, rhonValues, rho_s, '\alpha_{NE}', '\rho_{s}');
+sensitivity(alphaNE_rhoh, rhohValues, rho_h, '\alpha_{NE}', '\rho_{h}');
+sensitivity(alphaNE_nup, nunValues, nu_s, '\alpha_{NE}', '\nu_{s}');
+sensitivity(alphaNE_nuh, nuhValues, nu_h, '\alpha_{NE}', '\nu_{h}');
+sensitivity(alphaNE_dp, dnValues, d_s, '\alpha_{NE}', 'd_{s}');
+sensitivity(alphaNE_dh, dhValues, d_h, '\alpha_{NE}', 'd_{h}');
+%sensitivity(alphaNE_mup, munValues, mu_s, '\alpha_{NE}', '\mu_{s}');
+sensitivity(alphaNE_Cv, CvValues, C_vaccine, '\alpha_{NE}', 'C_{V}');
+sensitivity(alphaNE_Cmpx, CmpxValues, C_sick, '\alpha_{NE}', 'C_{MPX}');
+
+% display derivative of alpha_mup with respect to mu_s
+(alphaNE_mup(end) - alphaNE_mup(1))/(munValues(end)- munValues(1))
+diary off
+
+
+end
